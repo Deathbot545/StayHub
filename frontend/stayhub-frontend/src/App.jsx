@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import SearchBar from "./components/SearchBar";
-import Results from "./components/Results";
+import SearchBar from "../components/SearchBar.jsx";
+import Results from "../components/Results.jsx";
+import "./App.css";
 
 function App() {
   const [listings, setListings] = useState([]);
@@ -16,8 +17,8 @@ function App() {
   };
 
   return (
-    <div>
-      <h1>Sri Lanka StayHub</h1>
+    <div className="container">
+      <h1>🇱🇰 Sri Lanka StayHub</h1>
       <SearchBar onResults={setListings} />
       <Results listings={listings} onBook={handleBook} />
     </div>

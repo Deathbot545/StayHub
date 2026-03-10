@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./SearchBar.css";
 
 function SearchBar({ onResults }) {
   const [query, setQuery] = useState("");
@@ -14,7 +15,7 @@ function SearchBar({ onResults }) {
   };
 
   return (
-    <div>
+    <div className="search-bar">
       <input
         type="text"
         placeholder="Search stays..."

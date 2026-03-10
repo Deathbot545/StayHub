@@ -15,4 +15,21 @@ router.post("/", async (req, res) => {
   res.json(newListing);
 });
 
+// Search listings
+router.post("/search", async (req, res) => {
+  const { query } = req.body;
+  try {
+    const results = await Listing.find({
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { location: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } }
+      ]
+    });
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: "Search failed" });
+  }
+});
+
 module.exports = router;
