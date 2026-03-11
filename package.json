@@ -1,7 +1,7 @@
 {
-"scripts": {
-  "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix stayhub-frontend\""
-},
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend/stayhub-frontend\""
+  },
   "dependencies": {
     "concurrently": "^9.2.1"
   }

@@ -42,5 +42,11 @@ backend/node_modules/
 backend/logs/
 backend/tmp/
 
+# GCS/Google Cloud credentials
+backend/*.json
+!backend/package.json
+backend/*-gcs-key.json
+backend/stayhub-*.json
+
 # Misc
 *.tgz

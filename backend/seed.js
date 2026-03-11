@@ -1,50 +1,67 @@
 const mongoose = require("mongoose");
 const Listing = require("./models/Listing");
+const User = require("./models/User");
 
-mongoose.connect("mongodb+srv://<username>:<password>@cluster0.2rxu8xc.mongodb.net/stayhub?appName=Cluster0")
+mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB connected");
 
+    const host = await User.findOneAndUpdate(
+      { email: "host@stayhub.lk" },
+      {
+        name: "StayHub Host",
+        email: "host@stayhub.lk",
+        password: "$2b$10$gMS8hZckhV3sI5Yucs5cjux96D65gis6pZeRAEIJ5zsxFrqxbPjz6",
+        role: "host"
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
     const sampleListings = [
       {
-        title: "Beach Villa",
+        title: "Palm Horizon Villa",
         location: "Galle",
-        price: 50,
-        amenities: ["WiFi", "Breakfast"],
-        description: "Beautiful villa near the beach in Galle with ocean views.",
-        images: ["villa.jpg"]
+        pricePerNight: 185,
+        amenities: ["WiFi", "Breakfast", "Ocean View", "Pool"],
+        description: "A design-led beach villa minutes from Unawatuna with open-air dining and direct sunset views.",
+        images: ["https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"],
+        host: host._id
       },
       {
-        title: "Homestay",
+        title: "Temple Street Courtyard",
         location: "Kandy",
-        price: 20,
-        amenities: ["Breakfast", "Family-friendly"],
-        description: "Affordable homestay near Kandy city center with breakfast included.",
-        images: ["homestay.jpg"]
+        pricePerNight: 72,
+        amenities: ["Breakfast", "Family Friendly", "Garden", "Parking"],
+        description: "A quiet hill-country courtyard stay near the lake, suited to slow mornings and city walks.",
+        images: ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80"],
+        host: host._id
       },
       {
-        title: "Eco Lodge",
+        title: "Tea Trail Eco Lodge",
         location: "Ella",
-        price: 35,
-        amenities: ["WiFi", "Nature view"],
-        description: "Eco-friendly lodge surrounded by tea plantations in Ella.",
-        images: ["eco.jpg"]
+        pricePerNight: 98,
+        amenities: ["WiFi", "Nature View", "Balcony", "Breakfast"],
+        description: "Timber cabins tucked into tea country with ridge-line views and easy access to hiking trails.",
+        images: ["https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"],
+        host: host._id
       },
       {
-        title: "Luxury Apartment",
+        title: "Colombo Harbour Residences",
         location: "Colombo",
-        price: 80,
-        amenities: ["WiFi", "Air Conditioning", "Pool"],
-        description: "Modern apartment in Colombo with pool access.",
-        images: ["apartment.jpg"]
+        pricePerNight: 140,
+        amenities: ["WiFi", "Air Conditioning", "Pool", "Workspace"],
+        description: "A polished apartment for business or leisure stays, close to cafes, the coast, and major transit.",
+        images: ["https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80"],
+        host: host._id
       },
       {
-        title: "Treehouse Stay",
+        title: "Sigiriya Canopy Retreat",
         location: "Sigiriya",
-        price: 40,
-        amenities: ["Breakfast", "Nature view"],
-        description: "Unique treehouse stay near Sigiriya Rock.",
-        images: ["treehouse.jpg"]
+        pricePerNight: 110,
+        amenities: ["Breakfast", "Nature View", "Safari Access", "WiFi"],
+        description: "A tree-level retreat with jungle breezes, ideal for sunrise trips to Sigiriya Rock and village cycling.",
+        images: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80"],
+        host: host._id
       }
     ];
 

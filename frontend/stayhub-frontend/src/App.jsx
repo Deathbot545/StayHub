@@ -1,27 +1,38 @@
-import React, { useState } from "react";
-import SearchBar from "../components/SearchBar.jsx";
-import Results from "../components/Results.jsx";
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./lib/AuthContext";
+import Navbar from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Home from "./pages/Home";
+import Listings from "./pages/Listings";
+import MyListings from "./pages/MyListings";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import "./App.css";
 
 function App() {
-  const [listings, setListings] = useState([]);
-
-  const handleBook = async (listingId) => {
-    const res = await fetch("http://localhost:5001/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, userEmail: "test@example.com" })
-    });
-    const data = await res.json();
-    alert(data.message);
-  };
-
   return (
-    <div className="container">
-      <h1>🇱🇰 Sri Lanka StayHub</h1>
-      <SearchBar onResults={setListings} />
-      <Results listings={listings} onBook={handleBook} />
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/listings" element={<Listings />} />
+          <Route
+            path="/my-listings"
+            element={(
+              <ProtectedRoute roles={["host", "admin"]}>
+                <MyListings />
+              </ProtectedRoute>
+            )}
+          />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+          {/* Catch-all → home */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
