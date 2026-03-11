@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { apiFetch } from "../lib/api";
 import "./MyListings.css";
@@ -6,6 +6,7 @@ import "./MyListings.css";
 const initialForm = {
   title: "",
   location: "",
+  category: "beach",
   pricePerNight: "",
   description: "",
   amenities: "",
@@ -13,11 +14,27 @@ const initialForm = {
 };
 
 const MAX_IMAGES_PER_LISTING = 3;
+const LISTING_CATEGORIES = [
+  "beach",
+  "mountain",
+  "city",
+  "villa",
+  "apartment",
+  "cabin",
+  "boutique",
+  "other",
+];
+
+function formatCategoryLabel(value) {
+  if (!value) return "Other";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 function buildFormFromListing(listing) {
   return {
     title: listing.title ?? "",
     location: listing.location ?? "",
+    category: listing.category ?? "other",
     pricePerNight: String(listing.pricePerNight ?? listing.price ?? ""),
     description: listing.description ?? "",
     amenities: Array.isArray(listing.amenities) ? listing.amenities.join(", ") : "",
@@ -45,6 +62,7 @@ function HostListingCard({ listing, onEdit, onDelete, deletingId }) {
           <h3>{listing.title}</h3>
           <span className="host-card-price">${nightlyPrice}/night</span>
         </div>
+        <p className="host-card-category">Category: {formatCategoryLabel(listing.category)}</p>
         <p className="host-card-location">📍 {listing.location}</p>
         <p className="host-card-description">{listing.description}</p>
         <div className="host-card-tags">
@@ -84,6 +102,9 @@ function MyListings() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedPreviews, setSelectedPreviews] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryPickerRef = useRef(null);
+  const isUploading = submitting && !editingId;
 
   useEffect(() => {
     async function loadListings() {
@@ -102,6 +123,17 @@ function MyListings() {
     loadListings();
   }, []);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!categoryPickerRef.current?.contains(event.target)) {
+        setCategoryOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
     setForm((current) => ({
@@ -113,6 +145,7 @@ function MyListings() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
+    setCategoryOpen(false);
     selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
     setSelectedFiles([]);
     setSelectedPreviews([]);
@@ -203,6 +236,7 @@ function MyListings() {
     setError("");
     setSuccess("");
     setEditingId(listing._id);
+    setCategoryOpen(false);
     setForm(buildFormFromListing(listing));
     selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
     setSelectedFiles([]);
@@ -252,6 +286,7 @@ function MyListings() {
           body: JSON.stringify({
             title: form.title,
             location: form.location,
+            category: form.category,
             description: form.description,
             pricePerNight: Number(form.pricePerNight),
             amenities: form.amenities,
@@ -273,6 +308,7 @@ function MyListings() {
         const formData = new FormData();
         formData.append("title", form.title);
         formData.append("location", form.location);
+        formData.append("category", form.category);
         formData.append("description", form.description);
         formData.append("pricePerNight", String(Number(form.pricePerNight)));
         formData.append("amenities", form.amenities);
@@ -322,6 +358,16 @@ function MyListings() {
 
   return (
     <div className="my-listings-page">
+      {isUploading ? (
+        <div className="upload-overlay" role="status" aria-live="polite" aria-label="Publishing listing">
+          <div className="upload-overlay-card">
+            <div className="upload-spinner" aria-hidden="true" />
+            <h3>Publishing your listing</h3>
+            <p>Please wait while we process your photos and listing details.</p>
+          </div>
+        </div>
+      ) : null}
+
       <section className="my-listings-hero">
         <div className="my-listings-hero-inner">
           <div>
@@ -360,6 +406,41 @@ function MyListings() {
               <label>
                 <span>Location</span>
                 <input name="location" value={form.location} onChange={handleChange} placeholder="Galle" required />
+              </label>
+              <label>
+                <span>Category</span>
+                <div className={`host-select ${categoryOpen ? "is-open" : ""}`} ref={categoryPickerRef}>
+                  <button
+                    type="button"
+                    className="host-select-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={categoryOpen}
+                    onClick={() => setCategoryOpen((current) => !current)}
+                  >
+                    <span>{formatCategoryLabel(form.category)}</span>
+                    <span className="host-select-chevron" aria-hidden="true">▾</span>
+                  </button>
+
+                  {categoryOpen ? (
+                    <div className="host-select-menu" role="listbox" aria-label="Listing category">
+                      {LISTING_CATEGORIES.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          role="option"
+                          aria-selected={form.category === category}
+                          className={`host-select-option ${form.category === category ? "is-selected" : ""}`}
+                          onClick={() => {
+                            setForm((current) => ({ ...current, category }));
+                            setCategoryOpen(false);
+                          }}
+                        >
+                          {formatCategoryLabel(category)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </label>
               <label>
                 <span>Price per night (USD)</span>

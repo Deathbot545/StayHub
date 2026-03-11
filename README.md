@@ -23,6 +23,7 @@ A full-stack MERN (MongoDB, Express, React, Node.js) application for Sri Lanka v
 - Multi-image upload support (max **3 images per listing**)
 - Drag-and-drop file upload interface
 - Atomic upload (images upload with listing creation)
+- Category support (beach, mountain, city, villa, apartment, cabin, boutique, other)
 - Availability status management (Live/Hidden)
 
 ### 📸 Image Storage
@@ -33,8 +34,8 @@ A full-stack MERN (MongoDB, Express, React, Node.js) application for Sri Lanka v
 
 ### 🔍 Search & Discovery
 - Browse all available listings
-- Search and filter functionality
-- Listing details with amenities and host information
+- Search and filter functionality (keyword + category)
+- Dedicated listing details page with full information, host profile, and image gallery
 - Protected guest booking flow
 
 ### 👤 User Roles
@@ -164,9 +165,10 @@ StayHub/
 
 ### Listings
 - `GET /api/listings` - Get all public listings
+- `GET /api/listings/:id` - Get one public listing with host details
 - `GET /api/listings/mine` - Get user's listings (Host/Admin only)
 - `POST /api/listings` - Create new listing with images (Host/Admin only)
-- `PUT /api/listings/:id` - Update listing (Host/Admin only)
+- `PATCH /api/listings/:id` - Update listing (Host/Admin only)
 - `DELETE /api/listings/:id` - Delete listing (Host/Admin only)
 
 ### Bookings

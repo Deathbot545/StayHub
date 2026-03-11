@@ -61,6 +61,8 @@ stayhub-frontend/
 │   │   ├── Auth.css              # Auth pages styling
 │   │   ├── Listings.jsx          # Browse all listings
 │   │   ├── Listings.css
+│   │   ├── ListingDetails.jsx    # Full listing details + booking panel
+│   │   ├── ListingDetails.css
 │   │   ├── MyListings.jsx        # Host dashboard
 │   │   └── MyListings.css
 │   ├── lib/
@@ -102,9 +104,9 @@ stayhub-frontend/
 
 ### 🔍 Listing Discovery
 - **Browse**: View all available listings
-- **Search**: Filter by title, location, amenities
+- **Search**: Filter by keyword and category
 - **Listings Page**: Dedicated page for search results
-- **Listing Details**: Full information with host details
+- **Listing Details**: Full information with host details and full image gallery
 - **Image Gallery**: Multi-image listing preview
 
 ### 🛣️ Navigation
@@ -210,6 +212,7 @@ const res = await fetch("/api/listings", {
 ### Public Routes
 - `/` - Home (landing page)
 - `/listings` - Browse all listings
+- `/listings/:id` - Listing details page
 - `/signin` - Login page
 - `/signup` - Registration page
 
@@ -444,6 +447,7 @@ npm run build
 | react | 19.2.0 | UI library |
 | react-dom | 19.2.0 | DOM rendering |
 | react-router | 7.13.1 | Routing & navigation |
+| react-datepicker | 9.1.0 | Custom calendar/date picker UI |
 | vite | Latest | Build tool & dev server |
 
 **Dev Dependencies:**

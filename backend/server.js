@@ -35,7 +35,7 @@ mongoose.connect(process.env.MONGO_URI)
 initializeGCS()
   .then((success) => {
     if (!success) {
-      console.warn("⚠️ GCS initialization failed. Cloud uploads are unavailable; local upload fallback is enabled.");
+      console.warn("⚠️ GCS initialization failed. Cloud uploads are unavailable and upload requests will fail until GCS is fixed.");
     }
   })
   .catch(err => console.error("GCS init error:", err));

@@ -1,25 +1,30 @@
 .listings-page {
   padding-top: 64px;
   min-height: 100vh;
-  background: #f9fafb;
+  background:
+    radial-gradient(circle at top right, rgba(43, 138, 126, 0.12), transparent 25%),
+    linear-gradient(180deg, #f5f1e8 0%, #eef3f0 100%);
 }
 
 .listings-hero {
-  background: linear-gradient(160deg, #0f2027 0%, #2c5364 100%);
+  background:
+    radial-gradient(circle at 10% 20%, rgba(181, 154, 106, 0.16), transparent 28%),
+    linear-gradient(160deg, #edf2ef 0%, #deebe7 100%);
   padding: 56px 24px 48px;
   text-align: center;
+  border-bottom: 1px solid #d3dfdc;
 }
 
 .listings-hero h1 {
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   font-weight: 800;
-  color: #ffffff;
+  color: #1f3332;
   margin: 0 0 10px;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.03em;
 }
 
 .listings-hero p {
-  color: #94a3b8;
+  color: #5a6f6d;
   font-size: 1rem;
   margin: 0 0 28px;
 }

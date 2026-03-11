@@ -86,6 +86,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./stayhub-489907-0e76df346af1.json
   title: String (required),
   description: String (required),
   location: String (required),
+  category: String (enum: ["beach", "mountain", "city", "villa", "apartment", "cabin", "boutique", "other"], default: "other"),
   pricePerNight: Number (required, positive),
   amenities: [String],
   images: [String] (URLs, max 3),
@@ -197,6 +198,22 @@ Response: 200 OK
 ]
 ```
 
+#### Get Single Listing Details
+```http
+GET /api/listings/:id
+
+Response: 200 OK
+{
+  "_id": "...",
+  "title": "...",
+  "description": "...",
+  "location": "...",
+  "category": "beach",
+  "images": ["url1", "url2"],
+  "host": { "name": "Host Name", "email": "...", "role": "host" }
+}
+```
+
 #### Get Host's Listings
 ```http
 GET /api/listings/mine
@@ -232,7 +249,7 @@ Response: 201 Created
 
 #### Update Listing
 ```http
-PUT /api/listings/:id
+PATCH /api/listings/:id
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -313,12 +330,11 @@ Response: 200 OK
 #### 1. Google Cloud Storage (Recommended)
 - **Pros**: Scalable, production-ready, automatic signed URLs
 - **Setup**: Set GCS environment variables, service account with credentials
-- **Fallback**: Automatically switches to local storage on permission errors
+- **Behavior**: Uploads are GCS-only; requests fail clearly when GCS is unavailable
 
 #### 2. Local Storage (Development)
-- **Location**: `backend/uploads/listings/`
-- **Route**: `/uploads-local/listings/{filename}`
-- **Served by**: Express static middleware
+- Local storage is not used for new listing image uploads.
+- Existing legacy files may still exist under `backend/uploads/listings/`.
 
 ### Upload Flow
 ```

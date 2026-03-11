@@ -1,151 +1,19 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/AuthContext";
-import { apiFetch } from "../lib/api";
 import "./Results.css";
 
-function BookingModal({ listing, onClose, onConfirm }) {
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-  const nightlyPrice = listing.pricePerNight ?? listing.price ?? 0;
-
-  const nights =
-    checkIn && checkOut
-      ? Math.max(
-          0,
-          Math.round(
-            (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
-          )
-        )
-      : 0;
-
-  const handleBook = async () => {
-    if (!checkIn || !checkOut) {
-      setError("Please select both check-in and check-out dates");
-      return;
-    }
-    if (nights <= 0) {
-      setError("Check-out must be after check-in");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      await onConfirm(listing._id, checkIn, checkOut);
-      setSuccess(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const today = new Date().toISOString().split("T")[0];
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        {success ? (
-          <div className="modal-success">
-            <span className="success-icon">✅</span>
-            <h3>Booking Confirmed!</h3>
-            <p>
-              Your stay at <strong>{listing.title}</strong> has been booked.
-            </p>
-            <p className="success-dates">
-              {checkIn} → {checkOut} · {nights} night{nights !== 1 ? "s" : ""}
-            </p>
-            <p className="success-total">
-              Total: <strong>${(nightlyPrice * nights).toLocaleString()}</strong>
-            </p>
-            <button className="btn-close-success" onClick={onClose}>
-              Done
-            </button>
-          </div>
-        ) : (
-          <>
-            <button className="modal-close" onClick={onClose} aria-label="Close">
-              ✕
-            </button>
-            <h3 className="modal-title">Book Your Stay</h3>
-            <p className="modal-listing-name">{listing.title}</p>
-            <p className="modal-price">${nightlyPrice} / night</p>
-
-            <div className="modal-dates">
-              <div className="date-group">
-                <label>Check-in</label>
-                <input
-                  type="date"
-                  min={today}
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                />
-              </div>
-              <div className="date-group">
-                <label>Check-out</label>
-                <input
-                  type="date"
-                  min={checkIn || today}
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {nights > 0 && (
-              <p className="modal-summary">
-                {nights} night{nights !== 1 ? "s" : ""} ·{" "}
-                <strong>${(nightlyPrice * nights).toLocaleString()}</strong>
-              </p>
-            )}
-
-            {error && <p className="modal-error">⚠️ {error}</p>}
-
-            <button
-              className="btn-confirm"
-              onClick={handleBook}
-              disabled={loading}
-            >
-              {loading ? <span className="spinner-sm" /> : "Confirm Booking"}
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
+function formatCategoryLabel(value) {
+  if (!value) return "Other";
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function Results({ listings, loading }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [selected, setSelected] = useState(null);
 
-  const handleBookClick = (listing) => {
-    if (!user) {
-      navigate("/signin", { state: { from: "/listings" } });
-      return;
-    }
-
-    if (user.role !== "guest") {
-      return;
-    }
-
-    setSelected(listing);
-  };
-
-  const handleBook = async (listingId, checkIn, checkOut) => {
-    await apiFetch("/book", {
-      method: "POST",
-      body: JSON.stringify({
-        listingId,
-        checkIn,
-        checkOut,
-        userEmail: user?.email || "guest@stayhub.lk",
-      }),
-    });
+  const openListing = (id) => {
+    navigate(`/listings/${id}`);
   };
 
   if (loading) {
@@ -188,7 +56,20 @@ function Results({ listings, loading }) {
       </p>
       <div className="results-grid">
         {listings.map((listing) => (
-          <div key={listing._id} className="card">
+          <article
+            key={listing._id}
+            className="card card-clickable"
+            onClick={() => openListing(listing._id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openListing(listing._id);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${listing.title}`}
+          >
             <div className="card-image-wrap">
               {listing.images && listing.images.length > 0 ? (
                 <img src={listing.images[0]} alt={listing.title} />
@@ -198,6 +79,7 @@ function Results({ listings, loading }) {
               <span className="card-price">${listing.pricePerNight ?? listing.price}<span>/night</span></span>
             </div>
             <div className="card-body">
+              <span className="card-category">{formatCategoryLabel(listing.category)}</span>
               <h3 className="card-title">{listing.title}</h3>
               <p className="card-location">📍 {listing.location}</p>
               <p className="card-desc">{listing.description}</p>
@@ -215,23 +97,17 @@ function Results({ listings, loading }) {
               )}
               <button
                 className={`btn-book ${user && user.role !== "guest" ? "is-disabled" : ""}`}
-                onClick={() => handleBookClick(listing)}
-                disabled={Boolean(user && user.role !== "guest")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openListing(listing._id);
+                }}
               >
-                {!user ? "Sign In to Book" : user.role === "guest" ? "Book Now" : "Guests Only"}
+                View Details
               </button>
             </div>
-          </div>
+          </article>
         ))}
       </div>
-
-      {selected && (
-        <BookingModal
-          listing={selected}
-          onClose={() => setSelected(null)}
-          onConfirm={handleBook}
-        />
-      )}
     </>
   );
 }

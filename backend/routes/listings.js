@@ -1,13 +1,21 @@
 const express = require("express");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
 const router = express.Router();
 const Listing = require("../models/Listing");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
-const { uploadImage } = require("../services/gcs");
+const { uploadImage, deleteImage } = require("../services/gcs");
 
 const MAX_IMAGES_PER_LISTING = 3;
+const LISTING_CATEGORIES = [
+  "beach",
+  "mountain",
+  "city",
+  "villa",
+  "apartment",
+  "cabin",
+  "boutique",
+  "other",
+];
 
 const listingUpload = multer({
   storage: multer.memoryStorage(),
@@ -22,33 +30,6 @@ const listingUpload = multer({
     }
   },
 });
-
-async function uploadImageWithFallback(file) {
-  try {
-    const uploaded = await uploadImage(file);
-    return {
-      url: uploaded.publicUrl,
-      storage: "gcs",
-    };
-  } catch (err) {
-    const uploadsDir = path.join(__dirname, "..", "uploads", "listings");
-    await fs.promises.mkdir(uploadsDir, { recursive: true });
-
-    const safeOriginalName = String(file.originalname || "image")
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]/g, "-");
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeOriginalName}`;
-    const localPath = path.join(uploadsDir, fileName);
-
-    await fs.promises.writeFile(localPath, file.buffer);
-    console.warn(`[listings:create] GCS upload failed, saved locally: ${err.message}`);
-
-    return {
-      url: `/uploads-local/listings/${fileName}`,
-      storage: "local",
-    };
-  }
-}
 
 function parseStringArray(value) {
   if (Array.isArray(value)) {
@@ -67,11 +48,14 @@ function parseStringArray(value) {
 
 function normalizeListingPayload(body) {
   const numericPrice = Number(body.pricePerNight ?? body.price);
+  const rawCategory = typeof body.category === "string" ? body.category.trim().toLowerCase() : "";
+  const normalizedCategory = LISTING_CATEGORIES.includes(rawCategory) ? rawCategory : "other";
 
   return {
     title: typeof body.title === "string" ? body.title.trim() : "",
     location: typeof body.location === "string" ? body.location.trim() : "",
     description: typeof body.description === "string" ? body.description.trim() : "",
+    category: normalizedCategory,
     pricePerNight: numericPrice,
     amenities: parseStringArray(body.amenities),
     images: parseStringArray(body.images),
@@ -88,6 +72,10 @@ function validateListingPayload(payload) {
     return "Price per night must be a positive number";
   }
 
+  if (!payload.category || !LISTING_CATEGORIES.includes(payload.category)) {
+    return "Please select a valid category";
+  }
+
   if (payload.images.length > MAX_IMAGES_PER_LISTING) {
     return `You can upload up to ${MAX_IMAGES_PER_LISTING} images per listing`;
   }
@@ -101,6 +89,38 @@ function buildOwnedListingFilter(user, listingId) {
   }
 
   return { _id: listingId, host: user.id };
+}
+
+function extractGcsObjectName(imageUrl) {
+  if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+    return null;
+  }
+
+  const bucketName = process.env.GCS_BUCKET;
+  if (!bucketName) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(imageUrl);
+    if (!parsed.hostname.includes("storage.googleapis.com")) {
+      return null;
+    }
+
+    const directPrefix = `/${bucketName}/`;
+    if (parsed.pathname.startsWith(directPrefix)) {
+      return decodeURIComponent(parsed.pathname.slice(directPrefix.length));
+    }
+
+    const apiPathMatch = parsed.pathname.match(/^\/download\/storage\/v1\/b\/([^/]+)\/o\/(.+)$/);
+    if (apiPathMatch && apiPathMatch[1] === bucketName) {
+      return decodeURIComponent(apiPathMatch[2]);
+    }
+
+    return null;
+  } catch (_err) {
+    return null;
+  }
 }
 
 // Get all listings (public)
@@ -128,6 +148,22 @@ router.get("/mine", authenticateToken, authorizeRoles("host", "admin"), async (r
   }
 });
 
+// Get single listing details (public)
+router.get("/:id", async (req, res) => {
+  try {
+    const listing = await Listing.findOne({ _id: req.params.id, available: true })
+      .populate("host", "name email role");
+
+    if (!listing) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    res.json(listing);
+  } catch (err) {
+    res.status(404).json({ error: "Listing not found" });
+  }
+});
+
 // Add new listing (Host/Admin)
 router.post("/", authenticateToken, authorizeRoles("host", "admin"), listingUpload.array("images", MAX_IMAGES_PER_LISTING), async (req, res) => {
   try {
@@ -138,13 +174,9 @@ router.post("/", authenticateToken, authorizeRoles("host", "admin"), listingUplo
     const payload = normalizeListingPayload(req.body);
 
     if (req.files && req.files.length > 0) {
-      const uploaded = await Promise.all(req.files.map((file) => uploadImageWithFallback(file)));
-      payload.images = uploaded.map((item) => item.url);
-      const storageSummary = uploaded.reduce((acc, item) => {
-        acc[item.storage] = (acc[item.storage] || 0) + 1;
-        return acc;
-      }, {});
-      console.log(`[listings:create] uploaded ${payload.images.length} image(s): ${JSON.stringify(storageSummary)}`);
+      const uploaded = await Promise.all(req.files.map((file) => uploadImage(file)));
+      payload.images = uploaded.map((item) => item.publicUrl);
+      console.log(`[listings:create] uploaded ${payload.images.length} image(s): {\"gcs\":${payload.images.length}}`);
     }
 
     if (!Array.isArray(payload.images) || payload.images.length === 0) {
@@ -170,7 +202,7 @@ router.post("/", authenticateToken, authorizeRoles("host", "admin"), listingUplo
     res.status(201).json(createdListing);
   } catch (err) {
     console.error("[listings:create] failed:", err.message);
-    res.status(400).json({ error: err.message || "Failed to create listing" });
+    res.status(400).json({ error: `GCS upload failed: ${err.message}` });
   }
 });
 
@@ -203,13 +235,30 @@ router.patch("/:id", authenticateToken, authorizeRoles("host", "admin"), async (
 // Delete listing (Host owner or admin)
 router.delete("/:id", authenticateToken, authorizeRoles("host", "admin"), async (req, res) => {
   try {
-    const deletedListing = await Listing.findOneAndDelete(
+    const deletedListing = await Listing.findOne(
       buildOwnedListingFilter(req.user, req.params.id)
     );
 
     if (!deletedListing) {
       return res.status(404).json({ error: "Listing not found" });
     }
+
+    const imageUrls = Array.isArray(deletedListing.images) ? deletedListing.images : [];
+    const gcsObjectNames = imageUrls
+      .map((url) => extractGcsObjectName(url))
+      .filter(Boolean);
+
+    if (gcsObjectNames.length > 0) {
+      const deleteResults = await Promise.allSettled(gcsObjectNames.map((name) => deleteImage(name)));
+      const failedDeletes = deleteResults.filter((result) => result.status === "rejected");
+      if (failedDeletes.length > 0) {
+        console.warn(
+          `[listings:delete] listingId=${deletedListing._id} failed to remove ${failedDeletes.length} GCS image(s)`
+        );
+      }
+    }
+
+    await deletedListing.deleteOne();
 
     res.json({ message: "Listing deleted successfully", id: deletedListing._id });
   } catch (err) {
@@ -220,18 +269,43 @@ router.delete("/:id", authenticateToken, authorizeRoles("host", "admin"), async 
 // Search listings (public)
 router.post("/search", async (req, res) => {
   const query = (req.body.query || "").trim();
+  const selectedCategory = typeof req.body.category === "string" ? req.body.category.trim().toLowerCase() : "all";
+  const hasCategoryFilter = selectedCategory !== "all" && LISTING_CATEGORIES.includes(selectedCategory);
+
   try {
-    const filter = query
-      ? {
-          available: true,
+    const filter = { available: true };
+    const andClauses = [];
+
+    if (hasCategoryFilter) {
+      if (selectedCategory === "other") {
+        andClauses.push({
           $or: [
-            { title: { $regex: query, $options: "i" } },
-            { location: { $regex: query, $options: "i" } },
-            { description: { $regex: query, $options: "i" } },
-            { amenities: { $regex: query, $options: "i" } }
+            { category: "other" },
+            { category: { $exists: false } },
+            { category: null },
+            { category: "" },
           ]
-        }
-      : { available: true };
+        });
+      } else {
+        andClauses.push({ category: selectedCategory });
+      }
+    }
+
+    if (query) {
+      andClauses.push({
+        $or: [
+        { title: { $regex: query, $options: "i" } },
+        { location: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+        { amenities: { $regex: query, $options: "i" } },
+        { category: { $regex: query, $options: "i" } }
+        ]
+      });
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses;
+    }
 
     const results = await Listing.find(filter)
       .sort({ createdAt: -1 })

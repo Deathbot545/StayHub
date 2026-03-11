@@ -41,6 +41,7 @@ frontend/build/
 backend/node_modules/
 backend/logs/
 backend/tmp/
+backend/uploads/listings/
 
 # GCS/Google Cloud credentials
 backend/*.json
